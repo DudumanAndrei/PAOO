@@ -1,0 +1,3 @@
+/Users/andreiduduman/Desktop/PAOO/PAOO/CMakeFiles/Tema1.dir
+/Users/andreiduduman/Desktop/PAOO/PAOO/CMakeFiles/edit_cache.dir
+/Users/andreiduduman/Desktop/PAOO/PAOO/CMakeFiles/rebuild_cache.dir
