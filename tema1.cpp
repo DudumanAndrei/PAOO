@@ -1,6 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <utility> // pentru std::move
+
+#include <iostream>
+#include <string>
 
 class Dish {
 private:
@@ -10,14 +14,26 @@ private:
 
 public:
     // Constructor de inițializare
-    Dish(const std::string& name, double price, bool isAvailable = true) 
+    Dish(const std::string& name = "Unnamed Dish", double price = 0.0, bool isAvailable = true)
         : name(name), price(price), isAvailable(isAvailable) {}
 
-    // Constructor de copiere (supraincarcare constructor)
-    Dish(const Dish& other) 
+    // Constructor de copiere
+    Dish(const Dish& other)
         : name(other.name), price(other.price), isAvailable(other.isAvailable) {}
 
-    // Setters și getters pentru encapsulare
+    // Constructor de mutare
+    Dish(Dish&& other);
+
+    // Operator "=" de copiere
+    Dish& operator=(const Dish& other);
+
+    // Operator "=" de mutare
+    Dish& operator=(Dish&& other);
+
+    // Dezactivare funcții generate implicit de compilator
+    Dish& operator=(std::nullptr_t) = delete;
+
+    // Getter și Setter
     void setName(const std::string& name) { this->name = name; }
     std::string getName() const { return name; }
 
@@ -27,41 +43,66 @@ public:
     void setAvailability(bool isAvailable) { this->isAvailable = isAvailable; }
     bool getAvailability() const { return isAvailable; }
 
-    // Supraincarcare operator "="
-    Dish& operator=(const Dish& other) {
-        if (this == &other) return *this; // protecție la auto-atribuire
-        name = other.name;
-        price = other.price;
-        isAvailable = other.isAvailable;
-        return *this;
-    }
-
-    // Metode cu același nume, dar semnături diferite (overloading)
+    // Metode supraincarcate
     void displayInfo() const {
-        std::cout << "Dish: " << name << " - Price: $" << price << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
+        std::cout << "Dish: " << name << " - Price: $" << price
+                  << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
     }
 
     void displayInfo(const std::string& prefix) const {
-        std::cout << prefix << name << " - Price: $" << price << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
+        std::cout << prefix << name << " - Price: $" << price
+                  << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
     }
 };
+
+// Definiții pentru constructorul de mutare
+Dish::Dish(Dish&& other) 
+    : name(std::move(other.name)), price(other.price), isAvailable(other.isAvailable) {
+    std::cout << "Move constructor called for: " << name << std::endl;
+    other.price = 0.0;
+    other.isAvailable = false;
+}
+
+// Definiție pentru operator "=" de copiere
+Dish& Dish::operator=(const Dish& other) {
+    if (this == &other) return *this;
+    name = other.name;
+    price = other.price;
+    isAvailable = other.isAvailable;
+    std::cout << "Assignment operator called for: " << name << std::endl;
+    return *this;
+}
+
+// Definiție pentru operator "=" de mutare
+Dish& Dish::operator=(Dish&& other) {
+    if (this == &other) return *this;
+    name = std::move(other.name);
+    price = other.price;
+    isAvailable = other.isAvailable;
+    std::cout << "Move assignment operator called for: " << name << std::endl;
+    other.price = 0.0;
+    other.isAvailable = false;
+    return *this;
+}
+
 
 class Restaurant {
 private:
     std::string name;
-    std::vector<Dish*> menu;  // Folosim pointeri pentru obiectele Dish pe heap
+    std::vector<Dish*> menu;
 
 public:
-    // Constructor pentru Restaurant cu lista de inițializare
-    Restaurant(const std::string& name) : name(name) {}
+    Restaurant(const std::string& name = "Unnamed Restaurant") : name(name) {
+        std::cout << "Restaurant initialized: " << name << std::endl;
+    }
 
-    // Adăugare fel de mâncare la meniu
+    // Adăugare feluri de mâncare
     void addDish(const std::string& dishName, double price) {
-        Dish* newDish = new Dish(dishName, price);  // alocare pe heap
+        Dish* newDish = new Dish(dishName, price);
         menu.push_back(newDish);
     }
 
-    // Metodă pentru afișarea meniului
+    // Afișare meniu
     void displayMenu() const {
         std::cout << "Menu of " << name << ":\n";
         for (const auto& dish : menu) {
@@ -69,7 +110,7 @@ public:
         }
     }
 
-    // Destructor pentru eliberarea memoriei alocate pe heap
+    // Destructor pentru eliberarea memoriei
     ~Restaurant() {
         for (auto& dish : menu) {
             delete dish;
@@ -77,6 +118,10 @@ public:
         menu.clear();
         std::cout << "Memory freed for restaurant: " << name << std::endl;
     }
+
+    // Dezactivarea copiei (Item 6)
+    Restaurant(const Restaurant&) = delete;
+    Restaurant& operator=(const Restaurant&) = delete;
 };
 
 int main() {
@@ -90,16 +135,22 @@ int main() {
     // Afișare meniu
     restaurant.displayMenu();
 
-    // Supraincarcare constructor de copiere
+    // Constructor de copiere
     Dish dish1("Soup", 6.50);
-    Dish dish2 = dish1;  // Constructor de copiere
+    Dish dish2 = dish1;
 
-    // Supraincarcare operator "="
-    dish2 = Dish("Salad", 5.00);  // Operatorul "="
+    // Constructor de mutare
+    Dish dish3 = std::move(dish1);
 
-    // Folosim metodele supraincarcate
-    dish2.displayInfo();
-    dish2.displayInfo("Special Offer: ");
+    // Operator "=" de copiere
+    dish2 = Dish("Salad", 5.00);
+
+    // Operator "=" de mutare
+    dish3 = std::move(dish2);
+
+    // Metode supraincarcate
+    dish3.displayInfo();
+    dish3.displayInfo("Special Offer: ");
 
     return 0;
 }
