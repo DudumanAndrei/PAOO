@@ -1,10 +1,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <utility> // pentru std::move
-
-#include <iostream>
-#include <string>
+#include <memory> // Pentru smart pointers
+#include <utility> // Pentru std::move
 
 class Dish {
 private:
@@ -15,23 +13,45 @@ private:
 public:
     // Constructor de inițializare
     Dish(const std::string& name = "Unnamed Dish", double price = 0.0, bool isAvailable = true)
-        : name(name), price(price), isAvailable(isAvailable) {}
+        : name(name), price(price), isAvailable(isAvailable) {
+        std::cout << "Dish created: " << name << " - Price: $" << price << std::endl;
+    }
 
     // Constructor de copiere
     Dish(const Dish& other)
-        : name(other.name), price(other.price), isAvailable(other.isAvailable) {}
+        : name(other.name), price(other.price), isAvailable(other.isAvailable) {
+        std::cout << "Copy constructor called for: " << name << std::endl;
+    }
 
     // Constructor de mutare
-    Dish(Dish&& other);
+    Dish(Dish&& other) noexcept
+        : name(std::move(other.name)), price(other.price), isAvailable(other.isAvailable) {
+        std::cout << "Move constructor called for: " << name << std::endl;
+        other.price = 0.0;
+        other.isAvailable = false;
+    }
 
     // Operator "=" de copiere
-    Dish& operator=(const Dish& other);
+    Dish& operator=(const Dish& other) {
+        if (this == &other) return *this;
+        name = other.name;
+        price = other.price;
+        isAvailable = other.isAvailable;
+        std::cout << "Copy assignment operator called for: " << name << std::endl;
+        return *this;
+    }
 
     // Operator "=" de mutare
-    Dish& operator=(Dish&& other);
-
-    // Dezactivare funcții generate implicit de compilator
-    Dish& operator=(std::nullptr_t) = delete;
+    Dish& operator=(Dish&& other) noexcept {
+        if (this == &other) return *this;
+        name = std::move(other.name);
+        price = other.price;
+        isAvailable = other.isAvailable;
+        std::cout << "Move assignment operator called for: " << name << std::endl;
+        other.price = 0.0;
+        other.isAvailable = false;
+        return *this;
+    }
 
     // Getter și Setter
     void setName(const std::string& name) { this->name = name; }
@@ -44,65 +64,62 @@ public:
     bool getAvailability() const { return isAvailable; }
 
     // Metode supraincarcate
-    void displayInfo() const {
+    virtual void displayInfo() const { // Marcat virtual pentru polimorfism
         std::cout << "Dish: " << name << " - Price: $" << price
                   << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
     }
 
-    void displayInfo(const std::string& prefix) const {
-        std::cout << prefix << name << " - Price: $" << price
-                  << (isAvailable ? " (Available)" : " (Not Available)") << std::endl;
+    virtual ~Dish() {
+    if (name != "") {
+        std::cout << "Dish \"" << name << "\" destroyed (in destructor)" << std::endl;
+    } else {
+        std::cout << "Dish moved, no name to display (in destructor)" << std::endl;
     }
+}
+
 };
 
-// Definiții pentru constructorul de mutare
-Dish::Dish(Dish&& other) 
-    : name(std::move(other.name)), price(other.price), isAvailable(other.isAvailable) {
-    std::cout << "Move constructor called for: " << name << std::endl;
-    other.price = 0.0;
-    other.isAvailable = false;
-}
+class SpecialDish : public Dish {
+private:
+    std::string specialNote;
 
-// Definiție pentru operator "=" de copiere
-Dish& Dish::operator=(const Dish& other) {
-    if (this == &other) return *this;
-    name = other.name;
-    price = other.price;
-    isAvailable = other.isAvailable;
-    std::cout << "Assignment operator called for: " << name << std::endl;
-    return *this;
-}
+public:
+    SpecialDish(const std::string& name, double price, const std::string& note, bool isAvailable = true)
+        : Dish(name, price, isAvailable), specialNote(note) {
+        std::cout << "SpecialDish created: " << name << " - Note: " << specialNote << std::endl;
+    }
 
-// Definiție pentru operator "=" de mutare
-Dish& Dish::operator=(Dish&& other) {
-    if (this == &other) return *this;
-    name = std::move(other.name);
-    price = other.price;
-    isAvailable = other.isAvailable;
-    std::cout << "Move assignment operator called for: " << name << std::endl;
-    other.price = 0.0;
-    other.isAvailable = false;
-    return *this;
-}
+    void displayInfo() const override {
+        std::cout << "Special Dish: " << getName() << " - Price: $" << getPrice()
+                  << " - Note: " << specialNote
+                  << (getAvailability() ? " (Available)" : " (Not Available)") << std::endl;
+    }
 
+    ~SpecialDish() {
+        std::cout << "SpecialDish \"" << getName() << "\" destroyed (in destructor)" << std::endl;
+    }
+};
 
 class Restaurant {
 private:
     std::string name;
-    std::vector<Dish*> menu;
+    std::vector<std::unique_ptr<Dish>> menu; // Smart pointers pentru gestionarea memoriei
 
 public:
     Restaurant(const std::string& name = "Unnamed Restaurant") : name(name) {
         std::cout << "Restaurant initialized: " << name << std::endl;
     }
 
-    // Adăugare feluri de mâncare
     void addDish(const std::string& dishName, double price) {
-        Dish* newDish = new Dish(dishName, price);
-        menu.push_back(newDish);
+        menu.push_back(std::unique_ptr<Dish>(new Dish(dishName, price)));
+        std::cout << "Added Dish (using new): " << dishName << " - Price: $" << price << std::endl;
     }
 
-    // Afișare meniu
+    void addSpecialDish(const std::string& dishName, double price, const std::string& note) {
+        menu.push_back(std::unique_ptr<Dish>(new SpecialDish(dishName, price, note)));
+        std::cout << "Added Special Dish (using new): " << dishName << " - Note: " << note << std::endl;
+    }
+
     void displayMenu() const {
         std::cout << "Menu of " << name << ":\n";
         for (const auto& dish : menu) {
@@ -110,16 +127,11 @@ public:
         }
     }
 
-    // Destructor pentru eliberarea memoriei
     ~Restaurant() {
-        for (auto& dish : menu) {
-            delete dish;
-        }
-        menu.clear();
-        std::cout << "Memory freed for restaurant: " << name << std::endl;
+        std::cout << "Destructor called for Restaurant: " << name << std::endl;
+        // Smart pointers automatizează eliberarea memoriei
     }
 
-    // Dezactivarea copiei (Item 6)
     Restaurant(const Restaurant&) = delete;
     Restaurant& operator=(const Restaurant&) = delete;
 };
@@ -130,27 +142,17 @@ int main() {
 
     // Adăugare feluri de mâncare
     restaurant.addDish("Pasta Carbonara", 15.50);
-    restaurant.addDish("Margherita Pizza", 12.00);
+    restaurant.addSpecialDish("Truffle Risotto", 25.00, "Fresh truffles");
 
     // Afișare meniu
     restaurant.displayMenu();
 
-    // Constructor de copiere
+    // Demonstrarea copierii și mutării
     Dish dish1("Soup", 6.50);
-    Dish dish2 = dish1;
-
-    // Constructor de mutare
-    Dish dish3 = std::move(dish1);
-
-    // Operator "=" de copiere
-    dish2 = Dish("Salad", 5.00);
-
-    // Operator "=" de mutare
-    dish3 = std::move(dish2);
-
-    // Metode supraincarcate
-    dish3.displayInfo();
-    dish3.displayInfo("Special Offer: ");
+    Dish dish2 = dish1; // Copy constructor
+    Dish dish3 = std::move(dish1); // Move constructor
+    dish2 = Dish("Salad", 5.00); // Copy assignment operator
+    dish3 = std::move(dish2); // Move assignment operator
 
     return 0;
 }
